@@ -113,51 +113,68 @@ func PrepareData(coll *mongo.Collection) {
 	}
 }
 
+// Generic method to perform "SELECT * FROM BOOKS" (if this was SQL, which
+// it is not :D ), and then we convert it into an array of map. In Golang, you
+// define a map by writing map[<key type>]<value type>{<key>:<value>}.
+// interface{} is a special type in Golang, basically a wildcard...
 func FindAllBooks(coll *mongo.Collection) ([]models.BookStore, error) {
 	cursor, err := coll.Find(context.TODO(), bson.D{{}})
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	var results []models.BookStore
 	if err = cursor.All(context.TODO(), &results); err != nil {
-		return nil, err
+		panic(err)
 	}
 	return results, nil
 }
 
-func FindAllAuthors(coll *mongo.Collection) ([]map[string]interface{}, error) {
-	// Using an aggregation pipeline is more efficient for getting distinct values.
-	pipeline := mongo.Pipeline{
-		{{Key: "$group", Value: bson.D{{Key: "_id", Value: "$author"}}}},
-		{{Key: "$project", Value: bson.D{{Key: "BookAuthor", Value: "$_id"}, {Key: "_id", Value: 0}}}},
-	}
-	cursor, err := coll.Aggregate(context.TODO(), pipeline)
-	if err != nil {
-		return nil, err
+func FindAllAuthors(coll *mongo.Collection) []map[string]interface{} {
+	cursor, err := coll.Find(context.TODO(), bson.D{{}})
+	var results []models.BookStore
+	if err = cursor.All(context.TODO(), &results); err != nil {
+		panic(err)
 	}
 
-	var results []map[string]interface{}
-	if err = cursor.All(context.TODO(), &results); err != nil {
-		return nil, err
+	// Use a map to store distinct authors
+	distinctAuthors := make(map[string]struct{})
+	for _, res := range results {
+		distinctAuthors[res.BookAuthor] = struct{}{}
 	}
-	return results, nil
+
+	var ret []map[string]interface{}
+	// Convert distinct authors from map keys to a slice of maps
+	for author := range distinctAuthors {
+		ret = append(ret, map[string]interface{}{
+			"BookAuthor": author,
+		})
+	}
+
+	return ret
 }
 
-func FindAllYears(coll *mongo.Collection) ([]map[string]interface{}, error) {
-	pipeline := mongo.Pipeline{
-		{{Key: "$group", Value: bson.D{{Key: "_id", Value: "$year"}}}},
-		{{Key: "$project", Value: bson.D{{Key: "BookYear", Value: "$_id"}, {Key: "_id", Value: 0}}}},
-	}
-	cursor, err := coll.Aggregate(context.TODO(), pipeline)
-	if err != nil {
-		return nil, err
+func FindAllYears(coll *mongo.Collection) []map[string]interface{} {
+	cursor, err := coll.Find(context.TODO(), bson.D{{}})
+	var results []models.BookStore
+	if err = cursor.All(context.TODO(), &results); err != nil {
+		panic(err)
 	}
 
-	var results []map[string]interface{}
-	if err = cursor.All(context.TODO(), &results); err != nil {
-		return nil, err
+	// Use a map to store distinct years
+	distinctYears := make(map[string]struct{})
+	for _, res := range results {
+		distinctYears[res.BookYear] = struct{}{}
 	}
-	return results, nil
+
+	var ret []map[string]interface{}
+	// Convert distinct years from map keys to a slice of maps
+	for year := range distinctYears {
+		ret = append(ret, map[string]interface{}{
+			"BookYear": year,
+		})
+	}
+
+	return ret
 }
 
 func InsertOneBook(coll *mongo.Collection, book models.BookStore) (*mongo.InsertOneResult, error) {
