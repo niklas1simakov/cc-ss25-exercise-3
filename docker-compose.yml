@@ -22,6 +22,11 @@ services:
     image: mongo:latest
     ports:
       - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - bookstore-net
 
@@ -33,7 +38,8 @@ services:
     environment:
       - DATABASE_URI=mongodb://mongo:27017/exercise-3
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     networks:
       - bookstore-net
 
@@ -45,7 +51,8 @@ services:
     environment:
       - DATABASE_URI=mongodb://mongo:27017/exercise-3
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     networks:
       - bookstore-net
 
@@ -57,7 +64,8 @@ services:
     environment:
       - DATABASE_URI=mongodb://mongo:27017/exercise-3
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     networks:
       - bookstore-net
 
@@ -69,7 +77,8 @@ services:
     environment:
       - DATABASE_URI=mongodb://mongo:27017/exercise-3
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     networks:
       - bookstore-net
 
@@ -81,7 +90,8 @@ services:
     environment:
       - DATABASE_URI=mongodb://mongo:27017/exercise-3
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     networks:
       - bookstore-net
 

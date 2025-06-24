@@ -36,14 +36,6 @@ func Connect() *mongo.Client {
 		os.Exit(1)
 	}
 
-	// This is another way to specify the call of a function. You can define inline
-	// functions (or anonymous functions, similar to the behavior in Python)
-	defer func() {
-		if err = client.Disconnect(ctx); err != nil {
-			panic(err)
-		}
-	}()
-
 	return client
 }
 
