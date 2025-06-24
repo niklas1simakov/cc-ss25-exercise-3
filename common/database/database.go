@@ -14,29 +14,43 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-func Connect() (*mongo.Client, error) {
+func Connect() *mongo.Client {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	uri := os.Getenv("DATABASE_URI")
 	if len(uri) == 0 {
-		return nil, fmt.Errorf("failure to load env variable DATABASE_URI")
+		fmt.Printf("failure to load env variable\n")
+		os.Exit(1)
 	}
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create client for MongoDB: %w", err)
+		fmt.Printf("failed to create client for MongoDB\n")
+		os.Exit(1)
 	}
 
 	err = client.Ping(ctx, readpref.Primary())
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to MongoDB, please make sure the database is running: %w", err)
+		fmt.Printf("failed to connect to MongoDB, please make sure the database is running\n")
+		os.Exit(1)
 	}
 
-	return client, nil
+	// This is another way to specify the call of a function. You can define inline
+	// functions (or anonymous functions, similar to the behavior in Python)
+	defer func() {
+		if err = client.Disconnect(ctx); err != nil {
+			panic(err)
+		}
+	}()
+
+	return client
 }
 
-func PrepareDatabase(client *mongo.Client, dbName string, collecName string) (*mongo.Collection, error) {
+func PrepareDatabase(client *mongo.Client) (*mongo.Collection, error) {
+	dbName := "exercise-3"
+	collecName := "information"
+
 	db := client.Database(dbName)
 
 	// A more robust way to do this would be to check for a specific error,
@@ -117,7 +131,7 @@ func PrepareData(coll *mongo.Collection) {
 // it is not :D ), and then we convert it into an array of map. In Golang, you
 // define a map by writing map[<key type>]<value type>{<key>:<value>}.
 // interface{} is a special type in Golang, basically a wildcard...
-func FindAllBooks(coll *mongo.Collection) ([]models.BookStore, error) {
+func FindAllBooks(coll *mongo.Collection) []models.BookStore {
 	cursor, err := coll.Find(context.TODO(), bson.D{{}})
 	if err != nil {
 		panic(err)
@@ -126,7 +140,7 @@ func FindAllBooks(coll *mongo.Collection) ([]models.BookStore, error) {
 	if err = cursor.All(context.TODO(), &results); err != nil {
 		panic(err)
 	}
-	return results, nil
+	return results
 }
 
 func FindAllAuthors(coll *mongo.Collection) []map[string]interface{} {
