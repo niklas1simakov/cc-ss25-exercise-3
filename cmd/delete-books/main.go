@@ -1,26 +1,25 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
 	"github.com/CAPS-Cloud/exercises/common/database"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const (
-	dbName     = "bookstore"
-	collecName = "books"
-	port       = "3004"
+	port = "3004"
 )
 
 func main() {
-	client, err := database.Connect()
-	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
-	}
-	coll, err := database.PrepareDatabase(client, dbName, collecName)
+	client := database.Connect()
+
+	coll, err := database.PrepareDatabase(client)
 	if err != nil {
 		log.Fatalf("failed to prepare database: %v", err)
 	}
@@ -31,12 +30,20 @@ func main() {
 
 	e.DELETE("/api/books/:id", func(c echo.Context) error {
 		id := c.Param("id")
+
+		// Check if the book exists, otherwise not possible to delete
+		existingBook, err := coll.FindOne(context.TODO(), bson.M{"id": id}).Raw()
+		if err != nil && err != mongo.ErrNoDocuments {
+			return c.JSON(http.StatusInternalServerError, err.Error())
+		}
+		if existingBook == nil {
+			return c.JSON(http.StatusNotFound, "Book not found")
+		}
+
+		// Delete the book
 		result, err := database.DeleteOneBook(coll, id)
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to delete book"})
-		}
-		if result.DeletedCount == 0 {
-			return c.JSON(http.StatusNotFound, map[string]string{"error": "book not found"})
+			return c.JSON(http.StatusInternalServerError, err.Error())
 		}
 
 		return c.JSON(http.StatusOK, result)

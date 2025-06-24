@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
@@ -8,20 +9,18 @@ import (
 	"github.com/CAPS-Cloud/exercises/common/models"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const (
-	dbName     = "bookstore"
-	collecName = "books"
-	port       = "3003"
+	port = "3003"
 )
 
 func main() {
-	client, err := database.Connect()
-	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
-	}
-	coll, err := database.PrepareDatabase(client, dbName, collecName)
+	client := database.Connect()
+
+	coll, err := database.PrepareDatabase(client)
 	if err != nil {
 		log.Fatalf("failed to prepare database: %v", err)
 	}
@@ -34,12 +33,35 @@ func main() {
 		id := c.Param("id")
 		var book models.BookStore
 		if err := c.Bind(&book); err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid book format"})
+			return c.JSON(http.StatusBadRequest, err.Error())
 		}
 
+		if book.BookName == "" || book.BookAuthor == "" {
+			return c.JSON(http.StatusBadRequest, "Missing required fields")
+		}
+
+		// Check if the book exists, otherwise not possible to update
+		existingBook, err := coll.FindOne(context.TODO(), bson.M{"id": id}).Raw()
+		if err != nil && err != mongo.ErrNoDocuments {
+			return c.JSON(http.StatusInternalServerError, err.Error())
+		}
+		if existingBook == nil {
+			return c.JSON(http.StatusNotFound, "Book not found")
+		}
+
+		if book.ID == "" {
+			book.ID = id
+		}
+
+		// Check if the book id is the same as the one in the body
+		if book.ID != id {
+			return c.JSON(http.StatusBadRequest, "Book ID in URL and body must match")
+		}
+
+		// Update the book
 		result, err := database.UpdateOneBook(coll, id, book)
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to update book"})
+			return c.JSON(http.StatusInternalServerError, err.Error())
 		}
 
 		return c.JSON(http.StatusOK, result)
