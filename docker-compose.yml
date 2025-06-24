@@ -1,18 +1,90 @@
-name: exercise-2
+name: exercise-3
 
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  # NGINX Reverse Proxy
+  nginx:
+    image: nginx:1.25-alpine
     ports:
-      - "3030:3030" 
-    environment:
-      DATABASE_URI: mongodb://mongo:27017/exercise-2
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
     depends_on:
-      - mongo
+      - frontend
+      - get-books
+      - post-books
+      - put-books
+      - delete-books
+    networks:
+      - bookstore-net
 
+  # MongoDB Database
   mongo:
     image: mongo:latest
     ports:
-      - "27017:27017" 
+      - "27017:27017"
+    networks:
+      - bookstore-net
+
+  # Frontend Service
+  frontend:
+    build:
+      context: .
+      target: frontend-service
+    environment:
+      - DATABASE_URI=mongodb://mongo:27017/exercise-3
+    depends_on:
+      - mongo
+    networks:
+      - bookstore-net
+
+  # Get-Books API Service
+  get-books:
+    build:
+      context: .
+      target: get-books-service
+    environment:
+      - DATABASE_URI=mongodb://mongo:27017/exercise-3
+    depends_on:
+      - mongo
+    networks:
+      - bookstore-net
+
+  # Post-Books API Service
+  post-books:
+    build:
+      context: .
+      target: post-books-service
+    environment:
+      - DATABASE_URI=mongodb://mongo:27017/exercise-3
+    depends_on:
+      - mongo
+    networks:
+      - bookstore-net
+
+  # Put-Books API Service
+  put-books:
+    build:
+      context: .
+      target: put-books-service
+    environment:
+      - DATABASE_URI=mongodb://mongo:27017/exercise-3
+    depends_on:
+      - mongo
+    networks:
+      - bookstore-net
+
+  # Delete-Books API Service
+  delete-books:
+    build:
+      context: .
+      target: delete-books-service
+    environment:
+      - DATABASE_URI=mongodb://mongo:27017/exercise-3
+    depends_on:
+      - mongo
+    networks:
+      - bookstore-net
+
+networks:
+  bookstore-net:
+    driver: bridge

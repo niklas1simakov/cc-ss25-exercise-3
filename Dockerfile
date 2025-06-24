@@ -1,25 +1,64 @@
-# Dockerfile for the exercise 2
+# Dockerfile for the exercise 3
 
-# multiplatform image amd64 amd arm64
-FROM --platform=$TARGETPLATFORM golang:1.23.4-alpine
+# 1. Builder Stage: Compiles all Go applications
+FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
 
-# Set the DATABASE_URI environment variable with a default value
-ENV DATABASE_URI=mongodb://localhost:27017/exercise-2
-
-# Copy go.mod and go.sum first to leverage Docker cache
+# Copy dependency files
 COPY go.mod go.sum ./
+# Download dependencies
 RUN go mod download
 
-# Copy the rest of the application source code
+# Copy the rest of the source code
 COPY . .
 
-# Ensure dependencies are tidy
-RUN go mod tidy
+# Compile each microservice binary.
+# The CGO_ENABLED=0 flag is important for creating static binaries
+# that can run in a minimal container like alpine.
+RUN CGO_ENABLED=0 go build -o /bin/frontend   ./cmd/frontend
+RUN CGO_ENABLED=0 go build -o /bin/get-books  ./cmd/get-books
+RUN CGO_ENABLED=0 go build -o /bin/post-books ./cmd/post-books
+RUN CGO_ENABLED=0 go build -o /bin/put-books  ./cmd/put-books
+RUN CGO_ENABLED=0 go build -o /bin/delete-books ./cmd/delete-books
 
-# Expose port 3030
-EXPOSE 3030
 
-# Command to run the application
-ENTRYPOINT ["go", "run", "cmd/main.go"]
+# 2. Final Stages: Create a small image for each service
+
+# Frontend Service
+FROM alpine:latest AS frontend-service
+WORKDIR /app
+COPY --from=builder /bin/frontend .
+# The frontend service needs the HTML templates and CSS files
+COPY views ./views
+COPY css ./css
+EXPOSE 3000
+CMD ["./frontend"]
+
+# Get-Books Service
+FROM alpine:latest AS get-books-service
+WORKDIR /app
+COPY --from=builder /bin/get-books .
+EXPOSE 3001
+CMD ["./get-books"]
+
+# Post-Books Service
+FROM alpine:latest AS post-books-service
+WORKDIR /app
+COPY --from=builder /bin/post-books .
+EXPOSE 3002
+CMD ["./post-books"]
+
+# Put-Books Service
+FROM alpine:latest AS put-books-service
+WORKDIR /app
+COPY --from=builder /bin/put-books .
+EXPOSE 3003
+CMD ["./put-books"]
+
+# Delete-Books Service
+FROM alpine:latest AS delete-books-service
+WORKDIR /app
+COPY --from=builder /bin/delete-books .
+EXPOSE 3004
+CMD ["./delete-books"]
