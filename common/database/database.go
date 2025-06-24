@@ -56,33 +56,59 @@ func PrepareDatabase(client *mongo.Client, dbName string, collecName string) (*m
 func PrepareData(coll *mongo.Collection) {
 	startData := []models.BookStore{
 		{
-			ID:         "example1",
-			BookName:   "The Vortex",
-			BookAuthor: "José Eustasio Rivera",
-			BookPages:  "292",
-			BookYear:   "1924",
+			ID:          "example1",
+			BookName:    "The Vortex",
+			BookAuthor:  "José Eustasio Rivera",
+			BookEdition: "958-30-0804-4",
+			BookPages:   "292",
+			BookYear:    "1924",
 		},
 		{
-			ID:         "example2",
-			BookName:   "Frankenstein",
-			BookAuthor: "Mary Shelley",
-			BookPages:  "280",
-			BookYear:   "1818",
+			ID:          "example2",
+			BookName:    "Frankenstein",
+			BookAuthor:  "Mary Shelley",
+			BookEdition: "978-3-649-64609-9",
+			BookPages:   "280",
+			BookYear:    "1818",
 		},
 		{
-			ID:         "example3",
-			BookName:   "The Black Cat",
-			BookAuthor: "Edgar Allan Poe",
-			BookPages:  "280",
-			BookYear:   "1843",
+			ID:          "example3",
+			BookName:    "The Black Cat",
+			BookAuthor:  "Edgar Allan Poe",
+			BookEdition: "978-3-99168-238-7",
+			BookPages:   "280",
+			BookYear:    "1843",
 		},
 	}
 
+	// This syntax helps us iterate over arrays. It behaves similar to Python
+	// However, range always returns a tuple: (idx, elem). You can ignore the idx
+	// by using _.
+	// In the topic of function returns: sadly, there is no standard on return types from function. Most functions
+	// return a tuple with (res, err), but this is not granted. Some functions
+	// might return a ret value that includes res and the err, others might have
+	// an out parameter.
 	for _, book := range startData {
-		_, err := coll.InsertOne(context.TODO(), book)
-		if err != nil {
-			// In a real app, you'd want more sophisticated error handling.
-			log.Printf("Could not insert book %s: %v", book.BookName, err)
+		cursor, err := coll.Find(context.TODO(), book)
+		var results []models.BookStore
+		if err = cursor.All(context.TODO(), &results); err != nil {
+			panic(err)
+		}
+		if len(results) > 1 {
+			log.Fatal("more records were found")
+		} else if len(results) == 0 {
+			result, err := coll.InsertOne(context.TODO(), book)
+			if err != nil {
+				panic(err)
+			} else {
+				fmt.Printf("%+v\n", result)
+			}
+
+		} else {
+			for _, res := range results {
+				cursor.Decode(&res)
+				fmt.Printf("%+v\n", res)
+			}
 		}
 	}
 }
