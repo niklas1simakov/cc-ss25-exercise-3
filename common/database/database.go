@@ -24,19 +24,29 @@ func Connect() *mongo.Client {
 		os.Exit(1)
 	}
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
-	if err != nil {
-		fmt.Printf("failed to create client for MongoDB\n")
-		os.Exit(1)
+	var client *mongo.Client
+	var err error
+
+	for i := 0; i < 3; i++ {
+		client, err = mongo.Connect(ctx, options.Client().ApplyURI(uri))
+		if err != nil {
+			log.Printf("failed to create client for MongoDB, attempt %d: %v\n", i+1, err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		err = client.Ping(ctx, readpref.Primary())
+		if err != nil {
+			log.Printf("failed to connect to MongoDB, please make sure the database is running, attempt %d: %v\n", i+1, err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		return client
 	}
 
-	err = client.Ping(ctx, readpref.Primary())
-	if err != nil {
-		fmt.Printf("failed to connect to MongoDB, please make sure the database is running\n")
-		os.Exit(1)
-	}
-
-	return client
+	fmt.Printf("failed to connect to MongoDB after multiple retries\n")
+	os.Exit(1)
+	return nil // Should not be reached
 }
 
 func PrepareDatabase(client *mongo.Client) (*mongo.Collection, error) {
