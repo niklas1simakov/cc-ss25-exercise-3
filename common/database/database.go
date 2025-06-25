@@ -47,7 +47,7 @@ func PrepareDatabase(client *mongo.Client) (*mongo.Collection, error) {
 
 	// A more robust way to do this would be to check for a specific error,
 	// but for this exercise, we'll just drop if it exists to ensure a clean state.
-	db.Collection(collecName).Drop(context.TODO())
+	// db.Collection(collecName).Drop(context.TODO())
 
 	cmd := bson.D{{Key: "create", Value: collecName}}
 	var result bson.M
