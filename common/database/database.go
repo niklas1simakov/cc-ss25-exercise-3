@@ -95,25 +95,20 @@ func PrepareData(coll *mongo.Collection) {
 	// might return a ret value that includes res and the err, others might have
 	// an out parameter.
 	for _, book := range startData {
-		cursor, err := coll.Find(context.TODO(), book)
+		filter := bson.M{"id": book.ID}
+		cursor, err := coll.Find(context.TODO(), filter)
 		var results []models.BookStore
 		if err = cursor.All(context.TODO(), &results); err != nil {
 			panic(err)
 		}
-		if len(results) > 1 {
-			log.Fatal("more records were found")
-		} else if len(results) == 0 {
+		if len(results) > 0 {
+			log.Printf("Book with ID %s already exists, skipping insertion.", book.ID)
+		} else {
 			result, err := coll.InsertOne(context.TODO(), book)
 			if err != nil {
 				panic(err)
 			} else {
 				fmt.Printf("%+v\n", result)
-			}
-
-		} else {
-			for _, res := range results {
-				cursor.Decode(&res)
-				fmt.Printf("%+v\n", res)
 			}
 		}
 	}
